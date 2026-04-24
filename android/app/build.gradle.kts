@@ -20,9 +20,6 @@ import java.util.Properties
                 targetCompatibility = JavaVersion.VERSION_17
             }
 
-            kotlinOptions {
-                jvmTarget = "17"
-            }
 
             defaultConfig {
                 applicationId = "com.studiotsi.bnssa"
@@ -59,6 +56,12 @@ import java.util.Properties
                 }
             }
         }
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
 
 flutter {
     source = "../.."

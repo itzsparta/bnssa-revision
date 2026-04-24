@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:google_sign_in/google_sign_in.dart';
+
 import 'controllers/theme_notifier.dart';
 import 'pages/home_page.dart';
 import 'pages/intro_page.dart';
@@ -18,6 +20,9 @@ void main() async {
   // 1. Initialisation des services
   try {
     await Firebase.initializeApp();
+    await GoogleSignIn.instance.initialize(
+      serverClientId: '607880278780-cihcnn3mnanf53c7vql0rgbau7od0v8k.apps.googleusercontent.com',
+    );
     await PurchaseService.init();
     await NotificationService.init();
   } catch (e) {
