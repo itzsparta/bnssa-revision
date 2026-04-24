@@ -24,8 +24,8 @@ dependencies:
   webview_flutter: ^4.8.0
 
   # --- LA RÉPARATION (Important) ---
-  # On passe à la v8 pour ne plus avoir l'erreur "Registrar"
-  purchases_flutter: ^8.0.0
+  # Upgradé à v10 pour compatibilité avec riverpod_generator 4.x (freezed_annotation 3.x)
+  purchases_flutter: ^10.0.1
 
   # --- LE RESTE ---
   fl_chart: ^0.66.0
@@ -34,12 +34,16 @@ dependencies:
   timezone: ^0.9.2
   intl: ^0.20.2
   change_app_package_name: ^1.5.0
+  flutter_riverpod: ^3.3.1
+  riverpod_annotation: ^4.0.2
+  freezed_annotation: ^3.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
   build_runner: ^2.4.13
+  riverpod_generator: ^4.0.3
   flutter_launcher_icons: ^0.13.1
 
 flutter:
