@@ -30,7 +30,7 @@ class NotificationService {
       iOS: iosSettings,
     );
 
-    await _localNotifications.initialize(initSettings);
+    await _localNotifications.initialize(settings: initSettings);
   }
 
   // Demander la permission (Obligatoire pour Android 13+)
@@ -55,11 +55,11 @@ class NotificationService {
   // Programmer le rappel quotidien à 18h00
   static Future<void> scheduleDailyReminder() async {
     await _localNotifications.zonedSchedule(
-      0, // ID unique
-      'Entraînement BNSSA 🏊‍♂️', // Titre
-      'Ne perdez pas le rythme ! 5 minutes de quiz pour réussir ?', // Corps
-      _nextInstanceOfTime(18, 00), // Heure : 18h00
-      const NotificationDetails(
+      id: 0,
+      title: 'Entraînement BNSSA 🏊‍♂️',
+      body: 'Ne perdez pas le rythme ! 5 minutes de quiz pour réussir ?',
+      scheduledDate: _nextInstanceOfTime(18, 00),
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'daily_channel_id',
           'Rappels Quotidiens',
@@ -69,9 +69,7 @@ class NotificationService {
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time, // Répéter chaque jour
+      matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 
