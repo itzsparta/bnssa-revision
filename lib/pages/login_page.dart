@@ -83,15 +83,14 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   void _signInWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser != null) {
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-        await FirebaseAuth.instance.signInWithCredential(credential);
-        _goToHome();
+      final account = await GoogleSignIn.instance.authenticate();
+      final auth = await account.authorizationClient.authorizeScopes(['email', 'profile']);
+      final credential = GoogleAuthProvider.credential(accessToken: auth.accessToken);
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      _goToHome();
+    } on GoogleSignInException catch (e) {
+      if (e.code != GoogleSignInExceptionCode.canceled) {
+        _showError("Erreur Google: ${e.description}");
       }
     } catch (e) {
       _showError("Erreur Google: $e");

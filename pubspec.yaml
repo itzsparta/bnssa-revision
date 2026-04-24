@@ -19,7 +19,7 @@ dependencies:
 
   # --- CEUX QUI DEMANDENT LE SDK 36 ---
   shared_preferences: ^2.3.2
-  google_sign_in: ^6.2.1
+  google_sign_in: ^7.2.0
   google_mobile_ads: ^8.0.0
   webview_flutter: ^4.8.0
 
