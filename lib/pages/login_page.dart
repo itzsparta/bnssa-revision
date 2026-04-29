@@ -84,8 +84,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     setState(() => _isLoading = true);
     try {
       final account = await GoogleSignIn.instance.authenticate();
-      final auth = await account.authorizationClient.authorizeScopes(['email', 'profile']);
-      final credential = GoogleAuthProvider.credential(accessToken: auth.accessToken);
+      final googleAuth = account.authentication;
+      final credential = GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken,
+      );
       await FirebaseAuth.instance.signInWithCredential(credential);
       _goToHome();
     } on GoogleSignInException catch (e) {
