@@ -40,7 +40,7 @@ class _TrainerPackCardState extends State<TrainerPackCard> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black87;
-    final color = Colors.blue[800]!;
+    final color = Colors.blue[600]!;
 
     return Stack(
       clipBehavior: Clip.none,
