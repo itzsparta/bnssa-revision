@@ -6,6 +6,7 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'secrets.dart';
+import 'notification_service.dart';
 
 class PurchaseService {
 
@@ -123,6 +124,47 @@ class PurchaseService {
       }
     }
     await batch.commit();
+  }
+
+  static Future<void> checkTrainerSubscription() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final userSnap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+    final data = userSnap.data();
+    if (data == null || data['role'] != 'trainer') return;
+
+    try {
+      final customerInfo = await Purchases.getCustomerInfo();
+      final active = customerInfo.entitlements.active['trainer'];
+
+      if (active != null) {
+        if (data['trainerSubscriptionType'] == 'monthly') {
+          final currentPeriod = _currentMonthKey();
+          final lastPeriod = data['trainerLastLicensePeriod'] as String?;
+          if (currentPeriod != lastPeriod) {
+            await _generateTrainerLicense(user.uid);
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .update({'trainerLastLicensePeriod': currentPeriod});
+            await NotificationService.showLocalNotification(
+              'Nouvelle licence disponible',
+              'Votre licence élève du mois a été ajoutée à votre espace Formateur.',
+            );
+          }
+        }
+      } else {
+        final allEntitlements = customerInfo.entitlements.all['trainer'];
+        final wasCancelled = allEntitlements?.unsubscribeDetectedAt != null;
+        await _revokeTrainer(user.uid, revokeStudents: wasCancelled);
+      }
+    } catch (e) {
+      debugPrint('checkTrainerSubscription error: $e');
+    }
   }
 
   // --- ACHETER UN PRODUIT ---
