@@ -29,6 +29,11 @@ void main() async {
     debugPrint('Erreur Firebase: $e');
   }
 
+  // Vérification abonnement formateur (en arrière-plan, non bloquant)
+  PurchaseService.checkTrainerSubscription().catchError(
+    (e) => debugPrint('checkTrainerSubscription: $e'),
+  );
+
   // 2. Vérification première ouverture
   final prefs = await SharedPreferences.getInstance();
   final bool showIntro = !(prefs.getBool('seenIntro') ?? false);
