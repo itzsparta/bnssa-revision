@@ -26,6 +26,12 @@ class _TrainerPackCardState extends State<TrainerPackCard> {
           backgroundColor: Colors.green,
         ),
       );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Achat annulé ou non disponible.'),
+        ),
+      );
     }
   }
 
