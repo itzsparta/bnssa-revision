@@ -211,7 +211,7 @@ class PurchaseService {
       Package? target;
       for (final offering in offerings.all.values) {
         for (final pkg in offering.availablePackages) {
-          if (pkg.storeProduct.identifier == 'bnssa_trainer_monthly') {
+          if (pkg.storeProduct.identifier.startsWith('bnssa_trainer_monthly')) {
             target = pkg;
             break;
           }
@@ -246,7 +246,7 @@ class PurchaseService {
       Package? target;
       for (final offering in offerings.all.values) {
         for (final pkg in offering.availablePackages) {
-          if (pkg.storeProduct.identifier == 'bnssa_trainer_annual') {
+          if (pkg.storeProduct.identifier.startsWith('bnssa_trainer_annual')) {
             target = pkg;
             break;
           }
