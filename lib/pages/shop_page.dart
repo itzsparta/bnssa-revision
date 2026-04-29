@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:math';
 import '../services/ad_service.dart';
 import '../services/purchase_service.dart';
 
@@ -24,14 +23,6 @@ class _ShopPageState extends State<ShopPage> {
   }
 
   // --- LOGIQUE MÉTIER ---
-  String _generateRandomCode() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    Random rnd = Random();
-    String code = String.fromCharCodes(Iterable.generate(
-        6, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
-    return "BNSSA-$code";
-  }
-
   void _watchAdForCredits() {
     if (user == null) return;
     _adService.showRewardedAd(context, () {
@@ -176,7 +167,7 @@ class _ShopPageState extends State<ShopPage> {
         for (int i = 0; i < 3; i++) {
           DocumentReference newCodeRef = firestore.collection('license_codes').doc();
           batch.set(newCodeRef, {
-            'code': _generateRandomCode(),
+            'code': PurchaseService.generateRandomCode(),
             'createdBy': user!.uid,
             'createdAt': FieldValue.serverTimestamp(),
             'expiresAt': Timestamp.fromDate(expireDate), // DATE LIMITE
@@ -191,7 +182,7 @@ class _ShopPageState extends State<ShopPage> {
         for (int i = 0; i < quantity; i++) {
           DocumentReference newCodeRef = firestore.collection('license_codes').doc();
           batch.set(newCodeRef, {
-            'code': _generateRandomCode(),
+            'code': PurchaseService.generateRandomCode(),
             'createdBy': user!.uid,
             'createdAt': FieldValue.serverTimestamp(),
             'expiresAt': null,

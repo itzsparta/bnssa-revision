@@ -1,24 +1,22 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart'; // Pour debugPrint
+import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'secrets.dart';
 
 class PurchaseService {
-  // --- CONFIGURATION ---
-  // Vous obtiendrez ces clés sur le site de RevenueCat plus tard
-  static const _apiKeyAndroid = 'goog_votre_cle_publique_ici';
-  static const _apiKeyIOS = 'appl_votre_cle_publique_ici';
 
   static Future<void> init() async {
     await Purchases.setLogLevel(LogLevel.debug);
 
     PurchasesConfiguration configuration;
     if (Platform.isAndroid) {
-      configuration = PurchasesConfiguration(_apiKeyAndroid);
+      configuration = PurchasesConfiguration(Secrets.revenueCatAndroid);
     } else if (Platform.isIOS) {
-      configuration = PurchasesConfiguration(_apiKeyIOS);
+      configuration = PurchasesConfiguration(Secrets.revenueCatIOS);
     } else {
       return;
     }
@@ -47,47 +45,116 @@ class PurchaseService {
     return [];
   }
 
+  static String generateRandomCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final rnd = Random();
+    final code = String.fromCharCodes(
+      Iterable.generate(6, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))),
+    );
+    return 'BNSSA-$code';
+  }
+
+  static String _currentMonthKey() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}';
+  }
+
+  // ignore: unused_element
+  static Future<void> _generateTrainerLicense(String trainerUid) async {
+    final codeRef = FirebaseFirestore.instance.collection('license_codes').doc();
+    await codeRef.set({
+      'code': generateRandomCode(),
+      'createdBy': trainerUid,
+      'createdAt': FieldValue.serverTimestamp(),
+      'expiresAt': null,
+      'isUsed': false,
+      'type': 'pack_reussite',
+    });
+  }
+
+  // ignore: unused_element
+  static Future<void> _activateTrainerSubscription(
+    String uid, {
+    required String type,
+    required int licenseCount,
+  }) async {
+    final firestore = FirebaseFirestore.instance;
+    final batch = firestore.batch();
+    batch.update(firestore.collection('users').doc(uid), {
+      'role': 'trainer',
+      'isPremium': true,
+      'trainerSubscriptionType': type,
+      'trainerLastLicensePeriod': _currentMonthKey(),
+    });
+    for (int i = 0; i < licenseCount; i++) {
+      final codeRef = firestore.collection('license_codes').doc();
+      batch.set(codeRef, {
+        'code': generateRandomCode(),
+        'createdBy': uid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'expiresAt': null,
+        'isUsed': false,
+        'type': 'pack_reussite',
+      });
+    }
+    await batch.commit();
+  }
+
+  // ignore: unused_element
+  static Future<void> _revokeTrainer(
+    String uid, {
+    required bool revokeStudents,
+  }) async {
+    final firestore = FirebaseFirestore.instance;
+    final batch = firestore.batch();
+    batch.update(firestore.collection('users').doc(uid), {
+      'role': FieldValue.delete(),
+      'isPremium': false,
+      'trainerSubscriptionType': FieldValue.delete(),
+      'trainerLastLicensePeriod': FieldValue.delete(),
+    });
+    if (revokeStudents) {
+      final students = await firestore
+          .collection('users')
+          .where('premiumGrantedBy', isEqualTo: uid)
+          .get();
+      for (final student in students.docs) {
+        batch.update(student.reference, {'isPremium': false});
+      }
+    }
+    await batch.commit();
+  }
+
   // --- ACHETER UN PRODUIT ---
   static Future<bool> purchaseProduct(String productIdentifier) async {
     try {
-      // 1. On lance l'achat (L'écran Google/Apple s'ouvre)
-      // Note : Pour l'instant, comme on n'a pas configuré les produits, on simule.
-      // Une fois configuré, on utilisera : await Purchases.purchaseProduct(productIdentifier);
+      final offerings = await Purchases.getOfferings();
 
-      // --- SIMULATION (Correction Code Mort) ---
-      await Future.delayed(const Duration(seconds: 2)); // Faux délai
+      Package? target;
+      for (final offering in offerings.all.values) {
+        for (final package in offering.availablePackages) {
+          if (package.storeProduct.identifier == productIdentifier) {
+            target = package;
+            break;
+          }
+        }
+        if (target != null) break;
+      }
 
-      // On considère que ça marche toujours pour le test actuel
-      await _giveReward(productIdentifier);
+      if (target == null) {
+        debugPrint("Produit introuvable dans les offres RevenueCat : $productIdentifier");
+        return false;
+      }
+
+      await Purchases.purchase(PurchaseParams.package(target));
       return true;
-      // -----------------------------------------
 
     } on PlatformException catch (e) {
-      var errorCode = PurchasesErrorHelper.getErrorCode(e);
+      final errorCode = PurchasesErrorHelper.getErrorCode(e);
       if (errorCode != PurchasesErrorCode.purchaseCancelledError) {
         debugPrint("Erreur achat: $e");
       }
       return false;
-    }
-  }
-
-  // --- DISTRIBUTION DES RÉCOMPENSES ---
-  static Future<void> _giveReward(String productId) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-
-    if (productId.contains('20_credits')) {
-      await userRef.update({'credits': FieldValue.increment(20)});
-    } else if (productId.contains('50_credits')) {
-      await userRef.update({'credits': FieldValue.increment(50)});
-    } else if (productId.contains('100_credits')) {
-      await userRef.update({'credits': FieldValue.increment(100)});
-    } else if (productId.contains('premium')) {
-      await userRef.update({'isPremium': true, 'credits': 9999});
-    } else if (productId.contains('trainer')) {
-      await userRef.update({'role': 'trainer', 'isPremium': true});
     }
   }
 }
