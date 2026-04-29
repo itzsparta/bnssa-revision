@@ -88,4 +88,23 @@ class NotificationService {
   static Future<void> cancelAll() async {
     await _localNotifications.cancelAll();
   }
+
+  static Future<void> showLocalNotification(String title, String body) async {
+    const details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        'trainer_channel_id',
+        'Formateur',
+        channelDescription: 'Notifications espace formateur',
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
+      iOS: DarwinNotificationDetails(),
+    );
+    await _localNotifications.show(
+      id: 1,
+      title: title,
+      body: body,
+      notificationDetails: details,
+    );
+  }
 }
