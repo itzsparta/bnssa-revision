@@ -203,6 +203,11 @@ class PurchaseService {
   static Future<bool> buyTrainerMonthly() async {
     try {
       final offerings = await Purchases.getOfferings();
+      final allIds = offerings.all.values
+          .expand((o) => o.availablePackages)
+          .map((p) => p.storeProduct.identifier)
+          .toList();
+      debugPrint('buyTrainerMonthly: produits disponibles = $allIds');
       Package? target;
       for (final offering in offerings.all.values) {
         for (final pkg in offering.availablePackages) {
@@ -214,7 +219,7 @@ class PurchaseService {
         if (target != null) break;
       }
       if (target == null) {
-        debugPrint('buyTrainerMonthly: produit introuvable dans les offres RevenueCat');
+        debugPrint('buyTrainerMonthly: produit introuvable. Disponibles: $allIds');
         return false;
       }
       await Purchases.purchase(PurchaseParams.package(target));
@@ -233,6 +238,11 @@ class PurchaseService {
   static Future<bool> buyTrainerAnnual() async {
     try {
       final offerings = await Purchases.getOfferings();
+      final allIds = offerings.all.values
+          .expand((o) => o.availablePackages)
+          .map((p) => p.storeProduct.identifier)
+          .toList();
+      debugPrint('buyTrainerAnnual: produits disponibles = $allIds');
       Package? target;
       for (final offering in offerings.all.values) {
         for (final pkg in offering.availablePackages) {
@@ -244,7 +254,7 @@ class PurchaseService {
         if (target != null) break;
       }
       if (target == null) {
-        debugPrint('buyTrainerAnnual: produit introuvable dans les offres RevenueCat');
+        debugPrint('buyTrainerAnnual: produit introuvable. Disponibles: $allIds');
         return false;
       }
       await Purchases.purchase(PurchaseParams.package(target));
