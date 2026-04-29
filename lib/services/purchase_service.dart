@@ -199,4 +199,64 @@ class PurchaseService {
       return false;
     }
   }
+
+  static Future<bool> buyTrainerMonthly() async {
+    try {
+      final offerings = await Purchases.getOfferings();
+      Package? target;
+      for (final offering in offerings.all.values) {
+        for (final pkg in offering.availablePackages) {
+          if (pkg.storeProduct.identifier == 'bnssa_trainer_monthly') {
+            target = pkg;
+            break;
+          }
+        }
+        if (target != null) break;
+      }
+      if (target == null) {
+        debugPrint('buyTrainerMonthly: produit introuvable dans les offres RevenueCat');
+        return false;
+      }
+      await Purchases.purchase(PurchaseParams.package(target));
+      final user = FirebaseAuth.instance.currentUser!;
+      await _activateTrainerSubscription(user.uid, type: 'monthly', licenseCount: 1);
+      return true;
+    } on PlatformException catch (e) {
+      final code = PurchasesErrorHelper.getErrorCode(e);
+      if (code != PurchasesErrorCode.purchaseCancelledError) {
+        debugPrint('buyTrainerMonthly error: $e');
+      }
+      return false;
+    }
+  }
+
+  static Future<bool> buyTrainerAnnual() async {
+    try {
+      final offerings = await Purchases.getOfferings();
+      Package? target;
+      for (final offering in offerings.all.values) {
+        for (final pkg in offering.availablePackages) {
+          if (pkg.storeProduct.identifier == 'bnssa_trainer_annual') {
+            target = pkg;
+            break;
+          }
+        }
+        if (target != null) break;
+      }
+      if (target == null) {
+        debugPrint('buyTrainerAnnual: produit introuvable dans les offres RevenueCat');
+        return false;
+      }
+      await Purchases.purchase(PurchaseParams.package(target));
+      final user = FirebaseAuth.instance.currentUser!;
+      await _activateTrainerSubscription(user.uid, type: 'annual', licenseCount: 12);
+      return true;
+    } on PlatformException catch (e) {
+      final code = PurchasesErrorHelper.getErrorCode(e);
+      if (code != PurchasesErrorCode.purchaseCancelledError) {
+        debugPrint('buyTrainerAnnual error: $e');
+      }
+      return false;
+    }
+  }
 }
