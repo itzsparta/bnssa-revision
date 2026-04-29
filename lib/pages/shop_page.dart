@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/ad_service.dart';
 import '../services/purchase_service.dart';
+import '../widgets/trainer_pack_card.dart';
 
 class ShopPage extends StatefulWidget {
   const ShopPage({super.key});
@@ -103,8 +104,13 @@ class _ShopPageState extends State<ShopPage> {
 
                       // Donner le Premium à l'élève A VIE
                       transaction.update(
-                          FirebaseFirestore.instance.collection('users').doc(user!.uid),
-                          {'isPremium': true, 'credits': 9999}
+                        FirebaseFirestore.instance.collection('users').doc(user!.uid),
+                        {
+                          'isPremium': true,
+                          'credits': 9999,
+                          'premiumSource': 'trainer_license',
+                          'premiumGrantedBy': data['createdBy'],
+                        },
                       );
                     });
 
@@ -152,29 +158,6 @@ class _ShopPageState extends State<ShopPage> {
       }
       else if (type == 'pack_premium') {
         batch.update(userRef, {'isPremium': true, 'credits': 9999});
-      }
-      else if (type == 'pack_trainer') {
-        // --- ABONNEMENT FORMATEUR ---
-        DateTime expireDate = DateTime.now().add(const Duration(days: 90));
-
-        batch.update(userRef, {
-          'role': 'trainer',
-          'isPremium': true,
-          'subscription_end': Timestamp.fromDate(expireDate)
-        });
-
-        // Génération de 3 codes qui expirent dans 90 jours
-        for (int i = 0; i < 3; i++) {
-          DocumentReference newCodeRef = firestore.collection('license_codes').doc();
-          batch.set(newCodeRef, {
-            'code': PurchaseService.generateRandomCode(),
-            'createdBy': user!.uid,
-            'createdAt': FieldValue.serverTimestamp(),
-            'expiresAt': Timestamp.fromDate(expireDate), // DATE LIMITE
-            'isUsed': false,
-            'type': 'pack_reussite_trimestre'
-          });
-        }
       }
       else if (type.startsWith('pack_group_')) {
         // Achat unitaire (pas d'expiration)
@@ -254,22 +237,7 @@ class _ShopPageState extends State<ShopPage> {
                 ),
                 const SizedBox(height: 15),
 
-                // PACK FORMATEUR (Refait au propre)
-                _buildPackCard(
-                  title: "FORMATEUR PRO",
-                  price: "29.99 € / 3 mois",
-                  isPopular: false,
-                  color: Colors.blue[800]!,
-                  features: const [
-                    "💎 Votre accès Premium inclus",
-                    "👥 Espace Formateur (Suivi élèves)",
-                    "📦 3 Licences élèves / trimestre",
-                    "⏳ Validité des codes : 3 mois",
-                    "✨ Pour l'élève : Accès illimité à vie"
-                  ],
-                  onTap: () => _buyItem('pack_trainer', 30, "Pack Formateur", 0),
-                  isDark: isDark,
-                ),
+                const TrainerPackCard(),
 
                 const SizedBox(height: 30),
                 const Divider(),
