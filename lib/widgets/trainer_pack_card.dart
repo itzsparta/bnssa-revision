@@ -50,7 +50,7 @@ class _TrainerPackCardState extends State<TrainerPackCard> {
           decoration: BoxDecoration(
             color: cardColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+            border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
@@ -223,6 +223,15 @@ class _TrainerPackCardState extends State<TrainerPackCard> {
                 ),
               ),
             ],
+          ),
+        ),
+        Positioned(
+          top: -10,
+          right: 20,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10)),
+            child: const Text("FORMATEURS", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
           ),
         ),
       ],
