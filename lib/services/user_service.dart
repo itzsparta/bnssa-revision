@@ -140,6 +140,10 @@ class UserService {
         'credits': FieldValue.increment(amount),
       });
 
+  /// Stream temps réel des stats d'un thème pour un utilisateur.
+  Stream<DocumentSnapshot> themeStatStream(String uid, String themeId) =>
+      _db.collection('users').doc(uid).collection('theme_stats').doc(themeId).snapshots();
+
   /// Active le statut premium et crédite 9999 crédits après un achat pack premium.
   Future<void> activatePremium(String uid) =>
       _db.collection('users').doc(uid).update({

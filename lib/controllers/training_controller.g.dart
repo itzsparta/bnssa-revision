@@ -42,7 +42,7 @@ final class TrainingControllerProvider
 }
 
 String _$trainingControllerHash() =>
-    r'741c7c70236bc7b88dcd56984f43f1a8016d98b4';
+    r'2752cb15111f4116874f34498df4ee07b3b001ed';
 
 abstract class _$TrainingController extends $Notifier<TrainingState> {
   TrainingState build();

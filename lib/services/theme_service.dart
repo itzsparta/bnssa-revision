@@ -15,6 +15,15 @@ class ThemeService {
   Future<QuerySnapshot> getAllThemes() =>
       _db.collection('themes').get();
 
+  /// Compte le nombre de questions d'un thème via requête aggregate.
+  Future<int> getThemeQuestionCount(String themeId) => _db
+      .collection('themes')
+      .doc(themeId)
+      .collection('questions')
+      .count()
+      .get()
+      .then((snap) => snap.count ?? 0);
+
   /// Récupère les questions d'un thème.
   /// Si [limit] est fourni, limite le nombre de questions retournées.
   Future<List<Question>> getThemeQuestions(
