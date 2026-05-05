@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/user_service.dart';
 import '../theme_manager.dart';
 import '../services/stats_service.dart';
 import '../services/anki_service.dart';
@@ -53,27 +54,15 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
     );
   }
 
-  // --- FONCTION DE VALIDATION DIRECTE ---
+  final _userService = UserService();
+
   Future<void> _completeQuestDirectly(String questId, int xpReward) async {
     if (user == null) return;
-
-    final userRef = FirebaseFirestore.instance.collection('users').doc(user!.uid);
-    final doc = await userRef.get();
-    if (!doc.exists) return;
-
-    List<dynamic> completed = doc.data()?['completed_quests'] ?? [];
-
-    if (!completed.contains(questId)) {
-      await userRef.update({
-        'completed_quests': FieldValue.arrayUnion([questId]),
-        'xp': FieldValue.increment(xpReward)
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Quête validée ! +$xpReward XP"), backgroundColor: Colors.green)
-        );
-      }
+    await _userService.completeQuest(user!.uid, questId, xpReward);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Quête validée ! +$xpReward XP"), backgroundColor: Colors.green)
+      );
     }
   }
 
@@ -121,8 +110,8 @@ class _ProfilePageState extends State<ProfilePage> with AutomaticKeepAliveClient
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
 
-          StreamBuilder<DocumentSnapshot>(
-              stream: user == null ? null : FirebaseFirestore.instance.collection('users').doc(user!.uid).snapshots(),
+          StreamBuilder(
+              stream: user == null ? null : _userService.userStream(user!.uid),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                 // Dans ProfilePage.dart, à l'intérieur du StreamBuilder :

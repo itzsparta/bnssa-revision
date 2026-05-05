@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/stats_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../exam_result_details_page.dart';
@@ -31,14 +32,8 @@ class ExamStatsView extends StatelessWidget {
         const SizedBox(height: 25),
 
         if (user != null)
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .collection('exam_history')
-                .orderBy('date', descending: true)
-                .limit(50)
-                .snapshots(),
+          StreamBuilder(
+            stream: StatsService.examHistoryStream(user.uid),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 

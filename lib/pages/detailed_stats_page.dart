@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/user_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 // Import des vues détaillées
 import 'stats_details/anki_stats_view.dart';
@@ -38,8 +38,8 @@ class DetailedStatsPage extends StatelessWidget {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+      body: StreamBuilder(
+          stream: UserService().userStream(user.uid),
           builder: (context, snapshot) {
             if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
