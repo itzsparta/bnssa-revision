@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/question.dart';
+import '../services/report_service.dart';
 
 class ReportDialog extends StatefulWidget {
   final Question question;
@@ -14,20 +14,19 @@ class ReportDialog extends StatefulWidget {
 class _ReportDialogState extends State<ReportDialog> {
   final TextEditingController _reasonController = TextEditingController();
   bool _isSending = false;
+  final _reportService = ReportService();
 
   void _sendReport() async {
     if (_reasonController.text.trim().isEmpty) return;
     setState(() => _isSending = true);
     try {
       final user = FirebaseAuth.instance.currentUser;
-      await FirebaseFirestore.instance.collection('reports').add({
-        'questionId': widget.question.id,
-        'questionText': widget.question.questionText,
-        'userId': user?.uid ?? 'anonymous',
-        'reason': _reasonController.text.trim(),
-        'timestamp': FieldValue.serverTimestamp(),
-        'status': 'pending'
-      });
+      await _reportService.sendReport(
+        questionId: widget.question.id,
+        questionText: widget.question.questionText,
+        userId: user?.uid,
+        reason: _reasonController.text.trim(),
+      );
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(

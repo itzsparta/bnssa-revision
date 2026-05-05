@@ -1,7 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/user_service.dart';
 import '../utils/page_transition.dart';
 import 'home_page.dart';
 
@@ -18,6 +18,7 @@ class _UserInfoPageState extends State<UserInfoPage> {
   final TextEditingController _prenomController = TextEditingController();
   final TextEditingController _pseudoController = TextEditingController();
   bool _isLoading = false;
+  final _userService = UserService();
 
   void _saveInfo() async {
     if (!_formKey.currentState!.validate()) return;
@@ -27,30 +28,16 @@ class _UserInfoPageState extends State<UserInfoPage> {
     if (user == null) return;
 
     try {
-      // 1. On prépare les données
-      Map<String, dynamic> userData = {
-        'lastName': _nomController.text.trim().toUpperCase(),
-        'firstName': _prenomController.text.trim(), // Première lettre majuscule ? Optionnel
-        'pseudo': _pseudoController.text.trim(),
-        'profile_completed': true,
-        // On ne remet PAS 'credits' ici pour ne pas écraser s'il en a déjà gagné
-      };
+      await _userService.saveUserProfile(
+        user.uid,
+        lastName: _nomController.text.trim().toUpperCase(),
+        firstName: _prenomController.text.trim(),
+        pseudo: _pseudoController.text.trim(),
+      );
 
-      // 2. On écrit dans Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set(userData, SetOptions(merge: true)); // Merge permet de ne pas effacer le reste
-
-      // 3. LA CORRECTION DU BUG "ASYNC GAP"
-      // On vérifie si la page est toujours affichée avant de naviguer
       if (!mounted) return;
-
-      // 4. On redirige vers l'accueil
       Navigator.pushReplacement(context, SlideRightRoute(page: const HomePage()));
-
     } catch (e) {
-      // Sécurité aussi ici pour l'affichage du message d'erreur
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("Erreur de sauvegarde : $e"), backgroundColor: Colors.red)
