@@ -1,7 +1,7 @@
 name: bnssa
 description: Application d'entrainement au BNSSA.
 publish_to: 'none'
-version: 1.0.0+5
+version: 1.0.0+20
 
 environment:
   sdk: '>=3.11.0 <4.0.0'
@@ -42,6 +42,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  fake_cloud_firestore: ^4.1.0
   build_runner: ^2.4.13
   riverpod_generator: ^4.0.3
   flutter_launcher_icons: ^0.14.4
