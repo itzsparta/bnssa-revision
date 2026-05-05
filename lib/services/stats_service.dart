@@ -109,4 +109,13 @@ class StatsService {
       'exam_date': Timestamp.fromDate(date)
     });
   }
+
+  /// Stream des copies d'examen de l'utilisateur.
+  static Stream<QuerySnapshot> examHistoryStream(String uid) =>
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('exam_history')
+          .orderBy('date', descending: true)
+          .snapshots();
 }
