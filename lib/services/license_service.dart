@@ -6,10 +6,11 @@ class LicenseService {
   LicenseService({FirebaseFirestore? firestore})
       : _db = firestore ?? FirebaseFirestore.instance;
 
-  /// Stream des licences créées par un formateur.
+  /// Stream des licences créées par un formateur (trié par date décroissante).
   Stream<QuerySnapshot> trainerLicensesStream(String trainerUid) => _db
       .collection('license_codes')
-      .where('trainerUid', isEqualTo: trainerUid)
+      .where('createdBy', isEqualTo: trainerUid)
+      .orderBy('createdAt', descending: true)
       .snapshots();
 
   /// Active un code licence pour un élève (transaction atomique).

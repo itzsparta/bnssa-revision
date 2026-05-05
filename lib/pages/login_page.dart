@@ -2,7 +2,7 @@ import 'dart:ui'; // Nécessaire pour l'effet de flou (Glassmorphism)
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // AJOUTÉ : Pour vérifier le profil
+import '../services/user_service.dart';
 import 'package:flutter/services.dart';
 import '../utils/page_transition.dart';
 import 'home_page.dart';
@@ -28,6 +28,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   bool _isPasswordVisible = false;
   bool _isPhoneMode = false;
   String? _verificationId;
+  final _userService = UserService();
 
   // Animation
   late AnimationController _animController;
@@ -216,21 +217,17 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     }
   }
 
-  // --- NOUVELLE FONCTION DE REDIRECTION INTELLIGENTE ---
   void _goToHome() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    // 1. On récupère le profil utilisateur dans Firestore
-    final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    final isComplete = await _userService.isProfileComplete(user.uid);
 
     if (!mounted) return;
 
-    // 2. Vérification : Si pas de pseudo ou pas de nom -> Direction le formulaire
-    if (!doc.exists || doc.data()?['pseudo'] == null || doc.data()?['lastName'] == null) {
+    if (!isComplete) {
       Navigator.pushReplacement(context, SlideRightRoute(page: const UserInfoPage()));
     } else {
-      // Sinon -> Direction Accueil
       Navigator.pushReplacement(context, SlideRightRoute(page: const HomePage()));
     }
   }

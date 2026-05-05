@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/license_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart'; // Pour le presse-papiers
 import 'package:intl/intl.dart'; // Pour formater la date
@@ -40,11 +41,7 @@ class _LicensesPageState extends State<LicensesPage> {
         elevation: 0,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('license_codes')
-            .where('createdBy', isEqualTo: user?.uid)
-            .orderBy('createdAt', descending: true)
-            .snapshots(),
+        stream: LicenseService().trainerLicensesStream(user?.uid ?? ''),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/user_service.dart';
 import '../utils/page_transition.dart';
 import '../pages/shop_page.dart';
 
@@ -12,16 +12,12 @@ class HeaderStats extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return const SizedBox();
 
-    return StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .snapshots(),
+    return StreamBuilder(
+        stream: UserService().userStream(user.uid),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const SizedBox();
           var data = snapshot.data!.data() as Map<String, dynamic>;
 
-          // RECUPERATION DES DONNÉES
           int credits = data['credits'] ?? 0;
           int scoreTotal = data['score_total'] ?? 0;
           bool isPremium = data['isPremium'] ?? false;
@@ -31,37 +27,25 @@ class HeaderStats extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // 1. POINTS GAGNÉS (Score)
               _buildBadge(
-                  emoji: "🏆", // <--- CHANGEMENT ICI : Trophée au lieu de l'étoile
+                  emoji: "🏆",
                   color: Colors.amber,
                   text: "$scoreTotal pts",
-                  onTap: () {
-                    // Optionnel : Afficher un classement ou détails
-                  }),
-
+                  onTap: () {}),
               const SizedBox(width: 12.0),
-
-              // 2. CRÉDITS (Lien vers Boutique)
               _buildBadge(
-                // Si VIP : Couronne, sinon Éclair
                   emoji: isPremium ? "👑" : "⚡",
                   color: isPremium ? Colors.purpleAccent : Colors.blueAccent,
                   text: isPremium ? "VIP" : "$credits",
                   onTap: () {
-                    Navigator.push(
-                        context, SlideRightRoute(page: const ShopPage()));
+                    Navigator.push(context, SlideRightRoute(page: const ShopPage()));
                   }),
             ],
           );
         });
   }
 
-  Widget _buildBadge(
-      {required String emoji,
-        required Color color,
-        required String text,
-        required VoidCallback onTap}) {
+  Widget _buildBadge({required String emoji, required Color color, required String text, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -75,17 +59,10 @@ class HeaderStats extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(emoji, style: const TextStyle(fontSize: 16.0)),
-
             const SizedBox(width: 6.0),
-
             Padding(
               padding: const EdgeInsets.only(top: 1.0),
-              child: Text(text,
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                      fontSize: 13.0,
-                      height: 1.0)),
+              child: Text(text, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 13.0, height: 1.0)),
             ),
           ],
         ),

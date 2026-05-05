@@ -13,8 +13,8 @@ void main() {
     });
 
     test('émet uniquement les licences du formateur demandé', () async {
-      await fakeFirestore.collection('license_codes').add({'trainerUid': 'uid1', 'code': 'BNSSA-AAA001'});
-      await fakeFirestore.collection('license_codes').add({'trainerUid': 'uid2', 'code': 'BNSSA-BBB002'});
+      await fakeFirestore.collection('license_codes').add({'createdBy': 'uid1', 'code': 'BNSSA-AAA001'});
+      await fakeFirestore.collection('license_codes').add({'createdBy': 'uid2', 'code': 'BNSSA-BBB002'});
       final snap = await svc.trainerLicensesStream('uid1').first;
       expect(snap.docs.length, 1);
       expect((snap.docs.first.data() as Map<String, dynamic>)['code'], 'BNSSA-AAA001');
