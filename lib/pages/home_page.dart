@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/user_service.dart';
+import '../services/theme_service.dart';
+import '../services/credit_service.dart';
 import 'dart:ui';
 import 'training_page.dart'; // Nécessaire pour accéder à ThemeRunnerPage
 import 'community_page.dart';
@@ -20,6 +22,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   late PageController _pageController;
+  final _userService = UserService();
 
   @override
   void initState() {
@@ -37,59 +40,26 @@ class _HomePageState extends State<HomePage> {
 
   void _updateUserActivity() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'last_connection': FieldValue.serverTimestamp(),
-        'last_reviewed': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    }
+    if (user != null) await _userService.updateActivity(user.uid);
   }
 
   void _checkDailyReward() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-    final doc = await userRef.get();
+    final rewarded = await _userService.checkDailyReward(user.uid);
 
-    if (!doc.exists) return;
-
-    final data = doc.data() as Map<String, dynamic>;
-
-    Timestamp? lastGift = data['last_daily_gift'];
-    DateTime now = DateTime.now();
-    DateTime today = DateTime(now.year, now.month, now.day);
-
-    bool shouldGiveCredit = false;
-
-    if (lastGift == null) {
-      shouldGiveCredit = true;
-    } else {
-      DateTime lastDate = lastGift.toDate();
-      DateTime lastDay = DateTime(lastDate.year, lastDate.month, lastDate.day);
-      if (today.isAfter(lastDay)) {
-        shouldGiveCredit = true;
-      }
-    }
-
-    if (shouldGiveCredit) {
-      await userRef.update({
-        'credits': FieldValue.increment(1),
-        'last_daily_gift': FieldValue.serverTimestamp(),
-      });
-
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text("🎁 Cadeau du jour !"),
-            content: const Text("Tu as reçu 1 Crédit ⚡ gratuit pour t'entraîner aujourd'hui !"),
-            actions: [
-              ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text("Merci !"))
-            ],
-          ),
-        );
-      }
+    if (rewarded && mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text("🎁 Cadeau du jour !"),
+          content: const Text("Tu as reçu 1 Crédit ⚡ gratuit pour t'entraîner aujourd'hui !"),
+          actions: [
+            ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text("Merci !"))
+          ],
+        ),
+      );
     }
   }
 
@@ -225,8 +195,8 @@ class ThemeSearchDelegate extends SearchDelegate {
   }
 
   Widget _buildThemeList(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('themes').snapshots(),
+    return StreamBuilder(
+      stream: ThemeService().themesStream(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
@@ -266,74 +236,52 @@ class ThemeSearchDelegate extends SearchDelegate {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    // Récupérer les infos utilisateur (Crédits & Abonnements)
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-
-    // 1. Sécurité : On vérifie si la page est toujours là après le chargement
+    final snap = await UserService().userStream(user.uid).first;
     if (!context.mounted) return;
-    if (!userDoc.exists) return;
+    if (!snap.exists) return;
 
-    Map<String, dynamic> userData = userDoc.data()!;
-    int credits = userData['credits'] ?? 0;
+    final userData = snap.data() as Map<String, dynamic>;
     bool isUserPremium = userData['isPremium'] ?? false;
     List<dynamic> unlockedThemes = userData['unlocked_themes'] ?? [];
-
     bool isUnlocked = unlockedThemes.contains(themeId) || isUserPremium;
 
-    // A. CAS : THÈME VERROUILLÉ (PREMIUM)
     if (isPremiumTheme && !isUnlocked) {
       showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text("Thème verrouillé"),
-            content: Text("Ce thème coûte $cost crédits ⚡ pour être débloqué définitivement."),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Annuler")),
-              ElevatedButton(
-                  onPressed: () async {
-                    Navigator.pop(ctx); // On ferme la popup tout de suite
-
-                    if (credits >= cost) {
-                      // Achat
-                      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-                        'credits': FieldValue.increment(-cost),
-                        'unlocked_themes': FieldValue.arrayUnion([themeId])
-                      });
-
-                      // 2. Sécurité
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Thème débloqué !"), backgroundColor: Colors.green));
-                    } else {
-                      // Pas assez de crédits
-                      if (!context.mounted) return;
-                      _showNoCreditsDialog(context);
-                    }
-                  },
-                  child: const Text("Débloquer")
-              )
-            ],
-          )
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text("Thème verrouillé"),
+          content: Text("Ce thème coûte $cost crédits ⚡ pour être débloqué définitivement."),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Annuler")),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final missing = await CreditService.unlockTheme(user.uid, themeId, cost);
+                if (!context.mounted) return;
+                if (missing == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Thème débloqué !"), backgroundColor: Colors.green));
+                } else {
+                  _showNoCreditsDialog(context);
+                }
+              },
+              child: const Text("Débloquer"),
+            )
+          ],
+        ),
       );
       return;
     }
 
-    // B. CAS : THÈME STANDARD (1 Crédit la partie)
-    if (!isUnlocked) { // Si pas premium user, on paie 1 crédit
-      if (credits < 1) {
+    if (!isUnlocked) {
+      final missing = await CreditService.tryDeductCredits(user.uid, 1);
+      if (!context.mounted) return;
+      if (missing != null) {
         _showNoCreditsDialog(context);
         return;
       }
-      // On déduit le crédit
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'credits': FieldValue.increment(-1)
-      });
-
-      // 3. Sécurité
-      if (!context.mounted) return;
     }
 
-    // C. LANCEMENT DU QUIZ
-    close(context, null); // Ferme la recherche
+    close(context, null);
     Navigator.push(context, SlideRightRoute(page: ThemeRunnerPage(themeId: themeId, themeTitle: title)));
   }
 

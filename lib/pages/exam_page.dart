@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/user_service.dart';
+import '../services/theme_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
@@ -124,8 +125,8 @@ class _ExamPageState extends State<ExamPage> with TickerProviderStateMixin {
       final user = FirebaseAuth.instance.currentUser;
       bool isPremium = false;
       if (user != null) {
-        var userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-        if (userDoc.exists) isPremium = userDoc.data()?['isPremium'] ?? false;
+        final userSnap = await UserService().userStream(user.uid).first;
+        if (userSnap.exists) isPremium = (userSnap.data() as Map<String, dynamic>?)?['isPremium'] ?? false;
       }
 
       // Initialisation des paniers
@@ -134,7 +135,7 @@ class _ExamPageState extends State<ExamPage> with TickerProviderStateMixin {
         'part_4': [], 'part_5': [], 'part_6': []
       };
 
-      var themes = await FirebaseFirestore.instance.collection('themes').get();
+      var themes = await ThemeService().getAllThemes();
       int totalThemes = themes.docs.length;
 
       for (int i = 0; i < totalThemes; i++) {

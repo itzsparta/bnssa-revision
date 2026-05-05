@@ -1,6 +1,7 @@
 // lib/pages/shop_page.dart
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/license_service.dart';
+import '../services/user_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/ad_service.dart';
 import '../services/haptic_service.dart';
@@ -18,6 +19,8 @@ class _ShopPageState extends State<ShopPage> {
   final User? user = FirebaseAuth.instance.currentUser;
   final AdService _adService = AdService();
   final HapticService _hapticService = HapticService();
+  final _licenseService = LicenseService();
+  final _userService = UserService();
   bool _isLoading = false; // uniquement pour la validation de code
   final Set<String> _loadingItems = {}; // loading par produit
 
@@ -77,42 +80,7 @@ class _ShopPageState extends State<ShopPage> {
 
               try {
                 String inputCode = codeCtrl.text.trim().toUpperCase();
-
-                var snapshot = await FirebaseFirestore.instance
-                    .collection('license_codes')
-                    .where('code', isEqualTo: inputCode)
-                    .limit(1)
-                    .get();
-
-                if (snapshot.docs.isEmpty) throw "Code introuvable.";
-                var doc = snapshot.docs.first;
-                var data = doc.data();
-
-                if (data['isUsed'] == true) throw "Ce code a déjà été utilisé.";
-
-                if (data['expiresAt'] != null) {
-                  Timestamp exp = data['expiresAt'];
-                  if (DateTime.now().isAfter(exp.toDate())) {
-                    throw "Ce code a expiré (Fin du trimestre formateur).";
-                  }
-                }
-
-                await FirebaseFirestore.instance.runTransaction((transaction) async {
-                  transaction.update(doc.reference, {
-                    'isUsed': true,
-                    'usedBy': user!.uid,
-                    'usedAt': FieldValue.serverTimestamp(),
-                  });
-                  transaction.update(
-                    FirebaseFirestore.instance.collection('users').doc(user!.uid),
-                    {
-                      'isPremium': true,
-                      'credits': 9999,
-                      'premiumSource': 'trainer_license',
-                      'premiumGrantedBy': data['createdBy'],
-                    },
-                  );
-                });
+                await _licenseService.redeemCode(inputCode, user!.uid);
 
                 _hapticService.triggerSelection();
                 if (mounted) {
@@ -189,30 +157,14 @@ class _ShopPageState extends State<ShopPage> {
         return;
       }
 
-      final firestore = FirebaseFirestore.instance;
-      final batch = firestore.batch();
-      final userRef = firestore.collection('users').doc(user!.uid);
-
       if (type.startsWith('credits_')) {
-        batch.update(userRef, {'credits': FieldValue.increment(creditAmount)});
+        await _userService.addCredits(user!.uid, creditAmount);
       } else if (type == 'pack_premium') {
-        batch.update(userRef, {'isPremium': true, 'credits': 9999});
+        await _userService.activatePremium(user!.uid);
       } else if (type.startsWith('pack_group_')) {
         int quantity = int.parse(type.split('_')[2]);
-        for (int i = 0; i < quantity; i++) {
-          DocumentReference newCodeRef = firestore.collection('license_codes').doc();
-          batch.set(newCodeRef, {
-            'code': PurchaseService.generateRandomCode(),
-            'createdBy': user!.uid,
-            'createdAt': FieldValue.serverTimestamp(),
-            'expiresAt': null,
-            'isUsed': false,
-            'type': 'pack_reussite',
-          });
-        }
+        await _licenseService.createLicenseCodes(user!.uid, quantity, PurchaseService.generateRandomCode);
       }
-
-      await batch.commit();
       _hapticService.triggerSelection();
 
       if (mounted) {
@@ -432,63 +384,59 @@ class _ShopPageState extends State<ShopPage> {
     bool isBestValue = false,
   }) {
     final isLoading = _isItemLoading(loadingKey);
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: isLoading ? null : onTap,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: isLoading ? null : onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(6, 8, 6, 14),
+          decoration: BoxDecoration(
+            color: cardColor,
             borderRadius: BorderRadius.circular(15),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 6),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(
-                  color: isBestValue ? color.withValues(alpha: 0.6) : Colors.grey.withValues(alpha: 0.2),
-                  width: isBestValue ? 1.5 : 1,
-                ),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 5, offset: const Offset(0, 3))],
-              ),
-              child: Column(
-                children: [
-                  isLoading
-                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: color))
-                      : Icon(Icons.bolt, color: color),
-                  const SizedBox(height: 5),
-                  Text(
-                    amount,
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : Colors.black87),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 3),
-                  Text(pricePerCredit, style: TextStyle(fontSize: 10, color: Colors.grey[500]), textAlign: TextAlign.center),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                    child: Text(price, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
-                  ),
-                ],
-              ),
+            border: Border.all(
+              color: isBestValue ? color.withValues(alpha: 0.6) : Colors.grey.withValues(alpha: 0.2),
+              width: isBestValue ? 1.5 : 1,
             ),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 5, offset: const Offset(0, 3))],
+          ),
+          child: Column(
+            children: [
+              // Zone badge — même hauteur pour toutes les cartes
+              SizedBox(
+                height: 18,
+                child: isBestValue
+                    ? Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
+                          child: const Text("TOP VALEUR", style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 6),
+              isLoading
+                  ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: color))
+                  : Icon(Icons.bolt, color: color),
+              const SizedBox(height: 5),
+              Text(
+                amount,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : Colors.black87),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 3),
+              Text(pricePerCredit, style: TextStyle(fontSize: 10, color: Colors.grey[500]), textAlign: TextAlign.center),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                child: Text(price, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+              ),
+            ],
           ),
         ),
-        if (isBestValue)
-          Positioned(
-            top: -9,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
-                child: const Text("TOP VALEUR", style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-              ),
-            ),
-          ),
-      ],
+      ),
     );
   }
 

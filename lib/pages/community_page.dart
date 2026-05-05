@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/user_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import '../services/team_service.dart';
@@ -34,8 +35,8 @@ class _CommunityPageState extends State<CommunityPage>
 
     if (user != null) {
       try {
-        DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
-        int currentScore = (userDoc.data() as Map<String, dynamic>)['score_total'] ?? 0;
+        final userDoc = await UserService().userStream(user!.uid).first;
+        int currentScore = (userDoc.data() as Map<String, dynamic>? ?? {})['score_total'] ?? 0;
 
         if (currentScore > 0) {
           if (!mounted) return;
@@ -146,11 +147,8 @@ class _CommunityPageState extends State<CommunityPage>
     final Color bgCard = isDark ? const Color(0xFF1E1E1E) : Colors.white;
     final Color textCol = isDark ? Colors.white : Colors.black87;
 
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user!.uid)
-          .snapshots(),
+    return StreamBuilder(
+      stream: UserService().userStream(user!.uid),
       builder: (context, userSnap) {
         if (!userSnap.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -234,11 +232,8 @@ class _CommunityPageState extends State<CommunityPage>
         }
 
         // --- ÉCRAN : MON CLAN ---
-        return StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('teams')
-              .doc(teamCode)
-              .snapshots(),
+        return StreamBuilder(
+          stream: _teamService.teamStream(teamCode),
           builder: (context, teamSnap) {
             if (teamSnap.hasError) {
               return const Center(child: Text("Erreur d'accès au clan.", textAlign: TextAlign.center));
@@ -399,13 +394,8 @@ class _CommunityPageState extends State<CommunityPage>
   }
 
   Widget _buildGlobalRanking(String myTeamCode, bool isDark, Color bgCard, Color textCol) {
-    return StreamBuilder<QuerySnapshot>(
-      // 1. LA REQUÊTE OPTIMISÉE
-        stream: FirebaseFirestore.instance
-            .collection('teams')
-            .orderBy('score', descending: true)
-            .limit(20)
-            .snapshots(),
+    return StreamBuilder(
+        stream: _teamService.globalRankingStream(),
         builder: (context, snapshot) {
 
           // 2. GESTION DES ERREURS (Important pour voir le problème)
@@ -636,11 +626,8 @@ class _CommunityPageState extends State<CommunityPage>
 
   Widget _buildMembersList(
       String teamCode, String myUid, bool isDark, Color bgCard, Color textCol) {
-    return StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .where('teamCode', isEqualTo: teamCode)
-            .snapshots(),
+    return StreamBuilder(
+        stream: _teamService.teamMembersStream(teamCode),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(child: Text("Erreur: ${snapshot.error}", style: const TextStyle(color: Colors.red)));

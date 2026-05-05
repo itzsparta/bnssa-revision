@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/user_service.dart';
+import '../services/team_service.dart';
+import '../services/license_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart'; // Pour le presse-papier
 import '../utils/page_transition.dart';
@@ -46,8 +49,8 @@ class TrainerDashboardPage extends StatelessWidget {
           ),
         ],
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+      body: StreamBuilder(
+          stream: UserService().userStream(user.uid),
           builder: (context, snapshot) {
             if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
@@ -82,8 +85,8 @@ class TrainerDashboardPage extends StatelessWidget {
   }
 
   Widget _buildDashboardContent(BuildContext context, String teamCode, bool isDark) {
-    return StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('users').where('teamCode', isEqualTo: teamCode).snapshots(),
+    return StreamBuilder(
+        stream: TeamService().teamMembersStream(teamCode),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
@@ -423,7 +426,7 @@ class TrainerLicensesPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text("Mes Licences Élèves")),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('license_codes').where('createdBy', isEqualTo: user.uid).orderBy('createdAt', descending: true).snapshots(),
+        stream: LicenseService().trainerLicensesStream(user.uid),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
           var codes = snapshot.data!.docs;

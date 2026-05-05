@@ -1,9 +1,9 @@
 // lib/controllers/training_controller.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/user_service.dart';
+import '../services/theme_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/question.dart';
 import '../providers/service_providers.dart';
@@ -21,6 +21,9 @@ class TrainingController extends _$TrainingController {
   @override
   TrainingState build() => TrainingState.initial();
 
+  final _userService = UserService();
+  final _themeService = ThemeService();
+
   // ─── Test helper ─────────────────────────────────────────────────────────────
   void setStateForTest(TrainingState s) => state = s;
 
@@ -28,40 +31,10 @@ class TrainingController extends _$TrainingController {
   void initAdService() => ref.read(adServiceProvider).loadAd();
 
   // ─── Profile ─────────────────────────────────────────────────────────────────
-  Future<void> createUserProfileIfNeeded(String uid, String? email) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool('profile_created_v2') ?? false) return;
+  Future<void> createUserProfileIfNeeded(String uid, String? email) =>
+      _userService.createUserProfileIfNeeded(uid, email);
 
-    final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
-    final snapshot = await userRef.get();
-    if (!snapshot.exists) {
-      await userRef.set({
-        'email': email,
-        'createdAt': FieldValue.serverTimestamp(),
-        'credits': 10,
-        'xp': 0,
-        'score_total': 0,
-        'role': 'student',
-        'isPremium': false,
-        'stats_exam_total': 0,
-        'stats_exam_success': 0,
-        'stats_qcm_total': 0,
-        'stats_qcm_correct': 0,
-        'unlocked_themes': [],
-      });
-    }
-    await prefs.setBool('profile_created_v2', true);
-  }
-
-  Future<bool> hasMistakes(String uid) async {
-    final snap = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('mistakes')
-        .limit(1)
-        .get();
-    return snap.docs.isNotEmpty;
-  }
+  Future<bool> hasMistakes(String uid) => _userService.hasMistakes(uid);
 
   Future<void> resetAnki(String uid) async => AnkiService.resetAll(uid);
 
@@ -69,15 +42,7 @@ class TrainingController extends _$TrainingController {
   Future<void> loadQuestions(String themeId, String themeTitle) async {
     state = state.copyWith(loading: true);
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('themes')
-          .doc(themeId)
-          .collection('questions')
-          .get();
-
-      List<Question> loaded = snapshot.docs
-          .map((doc) => Question.fromFirestore(doc, theme: themeTitle))
-          .toList();
+      List<Question> loaded = await _themeService.getThemeQuestions(themeId, themeTitle);
 
       // Mélange les options de chaque question en conservant la bonne réponse
       loaded = loaded.map((q) {
@@ -146,20 +111,8 @@ class TrainingController extends _$TrainingController {
         if (elapsedMs > 0) StatsService.updateAverageTime(elapsedMs),
         if (user != null) ...[
           AnkiService.saveFlashcardReview(user.uid, q, isCorrect ? 3 : 1),
-          FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .update({'last_reviewed': FieldValue.serverTimestamp()}),
-          if (isCorrect)
-            FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .collection('theme_stats')
-                .doc(themeId)
-                .set({
-              'correct_ids': FieldValue.arrayUnion([q.id]),
-              'last_updated': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true)),
+          _userService.updateLastReviewed(user.uid),
+          if (isCorrect) _userService.updateThemeStat(user.uid, themeId, q.id),
         ],
       ]);
     } catch (e) {

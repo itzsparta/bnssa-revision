@@ -40,7 +40,7 @@ void main() {
     test('lève une exception si le code est déjà utilisé', () async {
       await fakeFirestore.collection('license_codes').doc('code1').set({
         'code': 'BNSSA-USED01',
-        'used': true,
+        'isUsed': true,
       });
       await expectLater(
         svc.redeemCode('BNSSA-USED01', 'uid_user'),
@@ -51,13 +51,13 @@ void main() {
     test('active le code et met à jour le profil utilisateur', () async {
       await fakeFirestore.collection('license_codes').doc('code1').set({
         'code': 'BNSSA-VALID1',
-        'used': false,
-        'trainerUid': 'uid_trainer',
+        'isUsed': false,
+        'createdBy': 'uid_trainer',
       });
       await fakeFirestore.collection('users').doc('uid_user').set({'isPremium': false});
       await svc.redeemCode('BNSSA-VALID1', 'uid_user');
       final licDoc = await fakeFirestore.collection('license_codes').doc('code1').get();
-      expect(licDoc.data()!['used'], true);
+      expect(licDoc.data()!['isUsed'], true);
       final userDoc = await fakeFirestore.collection('users').doc('uid_user').get();
       expect(userDoc.data()!['isPremium'], true);
     });

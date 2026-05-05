@@ -150,4 +150,13 @@ class TeamService {
       'teamCode': FieldValue.delete(),
     });
   }
+
+  Stream<DocumentSnapshot> teamStream(String teamCode) =>
+      _db.collection('teams').doc(teamCode).snapshots();
+
+  Stream<QuerySnapshot> teamMembersStream(String teamCode) =>
+      _db.collection('users').where('teamCode', isEqualTo: teamCode).snapshots();
+
+  Stream<QuerySnapshot> globalRankingStream({int limit = 20}) =>
+      _db.collection('teams').orderBy('score', descending: true).limit(limit).snapshots();
 }

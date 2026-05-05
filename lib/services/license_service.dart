@@ -13,6 +13,23 @@ class LicenseService {
       .orderBy('createdAt', descending: true)
       .snapshots();
 
+  /// Crée [quantity] codes licence dans un batch atomique.
+  Future<void> createLicenseCodes(String trainerUid, int quantity, String Function() generateCode) async {
+    final batch = _db.batch();
+    for (int i = 0; i < quantity; i++) {
+      final ref = _db.collection('license_codes').doc();
+      batch.set(ref, {
+        'code': generateCode(),
+        'createdBy': trainerUid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'expiresAt': null,
+        'isUsed': false,
+        'type': 'pack_reussite',
+      });
+    }
+    await batch.commit();
+  }
+
   /// Active un code licence pour un élève (transaction atomique).
   /// Throws [Exception] si le code est introuvable, déjà utilisé ou expiré.
   Future<void> redeemCode(String code, String userUid) async {
@@ -27,24 +44,25 @@ class LicenseService {
     final licDoc = query.docs.first;
     final data = licDoc.data();
 
-    if (data['used'] == true) throw Exception('Ce code a déjà été utilisé.');
+    if (data['isUsed'] == true) throw Exception('Ce code a déjà été utilisé.');
 
-    final expiry = data['expiry_date'];
+    final expiry = data['expiresAt'];
     if (expiry != null) {
       final expiryDate = (expiry as Timestamp).toDate();
-      if (DateTime.now().isAfter(expiryDate)) throw Exception('Ce code a expiré.');
+      if (DateTime.now().isAfter(expiryDate)) throw Exception('Ce code a expiré (Fin du trimestre formateur).');
     }
 
     await _db.runTransaction((tx) async {
       tx.update(licDoc.reference, {
-        'used': true,
+        'isUsed': true,
         'usedBy': userUid,
         'usedAt': FieldValue.serverTimestamp(),
       });
       tx.update(_db.collection('users').doc(userUid), {
         'isPremium': true,
-        'premiumGrantedBy': data['trainerUid'],
-        'premiumGrantedAt': FieldValue.serverTimestamp(),
+        'credits': 9999,
+        'premiumSource': 'trainer_license',
+        'premiumGrantedBy': data['createdBy'],
       });
     });
   }

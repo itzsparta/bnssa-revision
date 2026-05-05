@@ -120,4 +120,30 @@ class UserService {
         'credits': FieldValue.increment(-cost),
         'unlocked_themes': FieldValue.arrayUnion([themeId]),
       });
+
+  /// Met à jour last_reviewed après une réponse à une question.
+  Future<void> updateLastReviewed(String uid) =>
+      _db.collection('users').doc(uid).update({
+        'last_reviewed': FieldValue.serverTimestamp(),
+      });
+
+  /// Enregistre une question correctement répondue dans les stats par thème.
+  Future<void> updateThemeStat(String uid, String themeId, String questionId) =>
+      _db.collection('users').doc(uid).collection('theme_stats').doc(themeId).set({
+        'correct_ids': FieldValue.arrayUnion([questionId]),
+        'last_updated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+  /// Ajoute des crédits après un achat in-app.
+  Future<void> addCredits(String uid, int amount) =>
+      _db.collection('users').doc(uid).update({
+        'credits': FieldValue.increment(amount),
+      });
+
+  /// Active le statut premium et crédite 9999 crédits après un achat pack premium.
+  Future<void> activatePremium(String uid) =>
+      _db.collection('users').doc(uid).update({
+        'isPremium': true,
+        'credits': 9999,
+      });
 }
