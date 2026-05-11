@@ -29,13 +29,19 @@ class AdService {
     if (_rewardedAd != null) {
       _rewardedAd!.show(
         onUserEarnedReward: (ad, reward) async {
-          // CORRECTION ULTIME : On capture le Messenger AVANT l'attente (Async Gap)
-          // Comme ça, on n'utilise plus 'context' dans la zone dangereuse.
           final messenger = ScaffoldMessenger.of(context);
+          final user = FirebaseAuth.instance.currentUser;
+          
+          if (user != null) {
+            // Utilisation d'un service externe (passé en param ou via ref)
+            // Ici on va tricher un peu en utilisant Firebase directement si on n'a pas accès à ref,
+            // mais on devrait idéalement passer le CreditService.
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .update({'credits': FieldValue.increment(5)});
+          }
 
-          await _addCredits(5); // Le temps d'attente est ici
-
-          // On utilise la variable 'messenger' sauvegardée plus haut
           messenger.showSnackBar(
               const SnackBar(content: Text("+5 Crédits ajoutés !")));
           onRewardGranted();
@@ -50,34 +56,5 @@ class AdService {
     }
   }
 
-  Future<void> _addCredits(int amount) async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({'credits': FieldValue.increment(amount)});
-    }
-  }
-
-  static Future<bool> spendCredits(int amount, BuildContext context) async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
-
-    DocumentReference userRef =
-        FirebaseFirestore.instance.collection('users').doc(user.uid);
-
-    return await FirebaseFirestore.instance.runTransaction((transaction) async {
-      DocumentSnapshot snapshot = await transaction.get(userRef);
-      if (!snapshot.exists) return false;
-
-      int current = (snapshot.data() as Map<String, dynamic>)['credits'] ?? 0;
-      if (current >= amount) {
-        transaction.update(userRef, {'credits': FieldValue.increment(-amount)});
-        return true;
-      } else {
-        return false;
-      }
-    });
-  }
+  // Les méthodes _addCredits et spendCredits ont été migrées vers CreditService.
 }

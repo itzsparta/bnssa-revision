@@ -9,11 +9,11 @@ class ThemeService {
 
   /// Stream temps réel de tous les thèmes.
   Stream<QuerySnapshot> themesStream() =>
-      _db.collection('themes').snapshots();
+      _db.collection('themes').orderBy('order').snapshots();
 
   /// Lecture one-shot de tous les thèmes.
   Future<QuerySnapshot> getAllThemes() =>
-      _db.collection('themes').get();
+      _db.collection('themes').orderBy('order').get();
 
   /// Compte le nombre de questions d'un thème via requête aggregate.
   Future<int> getThemeQuestionCount(String themeId) => _db
