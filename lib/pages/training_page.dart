@@ -636,25 +636,7 @@ class _ThemeRunnerPageState extends State<ThemeRunnerPage> {
     try {
       var loaded = await ThemeService().getThemeQuestions(widget.themeId, widget.themeTitle);
 
-      loaded = loaded.map((q) {
-        String correctOptionText = "";
-        if (q.options.isNotEmpty && q.correctAnswerIndex < q.options.length) {
-          correctOptionText = q.options[q.correctAnswerIndex];
-        }
-        List<String> shuffledOptions = List.from(q.options);
-        shuffledOptions.shuffle();
-        int newIndex = shuffledOptions.indexOf(correctOptionText);
-        if (newIndex == -1) newIndex = 0;
-        return Question(
-          id: q.id,
-          questionText: q.questionText,
-          options: shuffledOptions,
-          correctAnswerIndex: newIndex,
-          explanation: q.explanation,
-          themeName: q.themeName,
-          imageUrl: q.imageUrl,
-        );
-      }).toList();
+      loaded = loaded.map((q) => q.withShuffledOptions().withMaskedLongAnswer()).toList();
 
       loaded.shuffle();
       if (loaded.length > 10) loaded = loaded.take(10).toList();

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Question {
@@ -57,6 +59,49 @@ class Question {
       explanation: data['explanation'] ?? '',
       imageUrl: data['imageUrl'],
       themeName: data['themeName'] ?? 'Inconnu',
+    );
+  }
+
+  Question withShuffledOptions() {
+    if (options.isEmpty) return this;
+    final correctText = options[correctAnswerIndex.clamp(0, options.length - 1)];
+    final shuffled = List<String>.from(options)..shuffle(Random());
+    final newIndex = shuffled.indexOf(correctText);
+    return Question(
+      id: id,
+      questionText: questionText,
+      options: shuffled,
+      correctAnswerIndex: newIndex == -1 ? 0 : newIndex,
+      explanation: explanation,
+      themeName: themeName,
+      imageUrl: imageUrl,
+    );
+  }
+
+  Question withMaskedLongAnswer() {
+    if (options.length < 2) return this;
+    final ci = correctAnswerIndex.clamp(0, options.length - 1);
+    final maskedIndex = Random().nextInt(options.length);
+    final maskedText = options[maskedIndex];
+
+    final newOptions = List<String>.from(options);
+    newOptions[maskedIndex] = 'Autre';
+
+    String newExplanation = explanation;
+    if (maskedIndex == ci) {
+      newExplanation = explanation.isEmpty
+          ? 'La bonne réponse était : $maskedText'
+          : 'La bonne réponse était : $maskedText\n\n$explanation';
+    }
+
+    return Question(
+      id: id,
+      questionText: questionText,
+      options: newOptions,
+      correctAnswerIndex: ci,
+      explanation: newExplanation,
+      themeName: themeName,
+      imageUrl: imageUrl,
     );
   }
 

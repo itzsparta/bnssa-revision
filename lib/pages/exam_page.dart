@@ -154,7 +154,7 @@ class _ExamPageState extends State<ExamPage> with TickerProviderStateMixin {
         for (var d in qSnap.docs) {
           Map<String, dynamic> data = d.data();
           if (!isPremium && (data['isPremium'] ?? false)) continue;
-          buckets[category]?.add(Question.fromFirestore(d, theme: themeTitle));
+          buckets[category]?.add(Question.fromFirestore(d, theme: themeTitle).withShuffledOptions());
         }
       }
 

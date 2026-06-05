@@ -44,25 +44,7 @@ class TrainingController extends _$TrainingController {
     try {
       List<Question> loaded = await _themeService.getThemeQuestions(themeId, themeTitle);
 
-      // Mélange les options de chaque question en conservant la bonne réponse
-      loaded = loaded.map((q) {
-        final String correctText = (q.options.isNotEmpty &&
-                q.correctAnswerIndex < q.options.length)
-            ? q.options[q.correctAnswerIndex]
-            : '';
-        final List<String> shuffled = List.from(q.options)..shuffle();
-        final int newIndex =
-            shuffled.indexOf(correctText).clamp(0, shuffled.length - 1);
-        return Question(
-          id: q.id,
-          questionText: q.questionText,
-          options: shuffled,
-          correctAnswerIndex: newIndex,
-          explanation: q.explanation,
-          themeName: q.themeName,
-          imageUrl: q.imageUrl,
-        );
-      }).toList();
+      loaded = loaded.map((q) => q.withShuffledOptions().withMaskedLongAnswer()).toList();
 
       loaded.shuffle();
       if (loaded.length > _kQuestionsPerSession) {
