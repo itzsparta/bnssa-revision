@@ -9,6 +9,7 @@ import '../models/question.dart';
 import '../services/anki_service.dart';
 import '../services/mistakes_service.dart';
 import '../services/stats_service.dart';
+import '../services/progression_service.dart';
 
 class ExamPage extends StatefulWidget {
   const ExamPage({super.key});
@@ -270,6 +271,10 @@ class _ExamPageState extends State<ExamPage> with TickerProviderStateMixin {
 
     if (user != null) {
       await StatsService.saveExamResult(user.uid, successCount, _questions.length, isPassed, examDetails);
+    }
+
+    if (isPassed && mounted) {
+      await ProgressionService.completeQuest(context, 'weekly_exam');
     }
 
     if (mounted) {

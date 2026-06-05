@@ -54,6 +54,13 @@ class ProgressionService {
       'xp': 200,
       'icon': Icons.timer
     },
+    {
+      'id': 'weekly_streak',
+      'title': 'Régularité',
+      'desc': 'Série de 3 jours consécutifs.',
+      'xp': 100,
+      'icon': Icons.local_fire_department
+    },
   ];
 
   // --- CALCUL DU NIVEAU ---
