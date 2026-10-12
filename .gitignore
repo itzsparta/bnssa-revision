@@ -43,3 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Clés et configuration Firebase (ne jamais committer)
+lib/services/secrets.dart
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+android/key.properties
+*.jks
+*.keystore
+*adminsdk*.json
+scripts/node_modules/
